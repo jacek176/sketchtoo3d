@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VECTOR.PAD</title>
+<style>
+  :root{
+    --bg:#111417;
+    --panel:#1b1f24;
+    --accent:#5eead4;
+    --text:#e6e6e6;
+    --muted:#8a8f98;
+    --border:#2a2f36;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Segoe UI', Roboto, Arial, sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px;
+  }
+  h1{
+    font-family:'Courier New', monospace;
+    letter-spacing:2px;
+    margin:0 0 14px 0;
+    font-size:22px;
+    color:var(--accent);
+  }
+  .app{width:100%;max-width:640px;}
+  .toolbar{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:12px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:16px;
+    margin-bottom:12px;
+  }
+  .group{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .group label{
+    font-size:11px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:1px;
+  }
+  .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+  button{
+    background:#242a31;
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:7px 12px;
+    cursor:pointer;
+    font-size:13px;
+    transition:.15s;
+    white-space:nowrap;
+  }
+  button:hover{background:#2d343c;}
+  .w-btn.active, .t-btn.active, .f-btn.active{
+    background:var(--accent);
+    color:#111;
+    border-color:var(--accent);
+    font-weight:bold;
+  }
+  button.primary{
+    background:var(--accent);
+    color:#111;
+    font-weight:bold;
+    border:none;
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  button.danger{border-color:#7a3030;}
+  input[type="text"], input[type="number"]{
+    background:#0f1216;
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:6px;
+    padding:7px 8px;
+    font-size:13px;
+  }
+  input[type="text"]{width:150px;}
+  input[type="number"]{width:60px;}
+  .checkline{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
+  .canvas-wrap{
+    border:1px solid var(--border);
+    border-radius:10px;
+    overflow:hidden;
+    background:#fff;
+  }
+  svg{
+    display:block;
+    width:100%;
+    height:auto;
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  .hint{
+    font-size:12px;
+    color:var(--muted);
+    margin-top:10px;
+    line-height:1.6;
+  }
+  .handle{
+    fill:#5eead4;
+    stroke:#111;
+    stroke-width:1;
+    cursor:nwse-resize;
+  }
+  .sel-outline{
+    fill:none;
+    stroke:#5eead4;
+    stroke-width:1;
+    stroke-dasharray:4 3;
+    pointer-events:none;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>VECTOR.PAD</h1>
+
+  <div class="toolbar">
+    <div class="group">
+      <label>Narzędzie</label>
+      <div class="row">
+        <button class="t-btn active" data-tool="draw">Pędzel</button>
+        <button class="t-btn" data-tool="select">Zaznacz</button>
+        <button class="t-btn" data-tool="line">／ Linia</button>
+        <button class="t-btn" data-tool="rect">▭ Prostokąt</button>
+        <button class="t-btn" data-tool="circle">◯ Koło</button>
+        <button class="t-btn" data-tool="triangle">△ Trójkąt</button>
+        <button class="t-btn" data-tool="eraser">🧽 Gumka</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <label>Grubość linii / konturu</label>
+      <div class="row">
+        <button class="w-btn" data-width="2">2px</button>
+        <button class="w-btn" data-width="4">4px</button>
+        <button class="w-btn active" data-width="8">8px</button>
+        <button class="w-btn" data-width="16">16px</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <label>Wypełnienie kształtów</label>
+      <div class="row">
+        <button class="f-btn active" data-fill="filled">Pełny</button>
+        <button class="f-btn" data-fill="outline">Kontur</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <label>Tekst do eksportu (np. inicjały)</label>
+      <div class="row">
+        <input type="text" id="textInput" placeholder="np. AB" maxlength="24">
+        <input type="number" id="fontSize" value="32" min="8" max="120" title="Rozmiar czcionki">
+        <button id="addTextBtn">Dodaj tekst</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <label>Widok</label>
+      <div class="checkline">
+        <input type="checkbox" id="gridToggle" checked>
+        <label for="gridToggle" style="text-transform:none;letter-spacing:0;font-size:12px;">Siatka (1 kratka = 1 cm)</label>
+      </div>
+    </div>
+
+    <div class="group">
+      <label>Akcje</label>
+      <div class="row">
+        <button id="undoBtn">Cofnij</button>
+        <button id="deleteBtn" class="danger">Usuń zaznaczone</button>
+        <button id="clearBtn" class="danger">Wyczyść</button>
+        <button id="exportBtn" class="primary">Eksportuj SVG</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="canvas-wrap">
+    <svg id="canvas" viewBox="0 0 560 400" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="gridMinor" width="10" height="10" patternUnits="userSpaceOnUse">
+          <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#e2e2e2" stroke-width="0.5"/>
+        </pattern>
+        <pattern id="gridMajor" width="50" height="50" patternUnits="userSpaceOnUse">
+          <rect width="50" height="50" fill="url(#gridMinor)"/>
+          <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#bbb" stroke-width="1"/>
+        </pattern>
+      </defs>
+      <rect id="gridBg" x="0" y="0" width="560" height="400" fill="url(#gridMajor)"/>
+      <g id="drawLayer"></g>
+    </svg>
+  </div>
+
+  <p class="hint">
+    <b>Pędzel</b> — rysuj odręcznie. <b>Linia / Prostokąt / Koło / Trójkąt</b> — kliknij i przeciągnij.
+    <b>Zaznacz</b> — klik na obiekt go zaznacza, przeciągnięcie przesuwa; przytrzymaj <b>Shift</b> i klikaj,
+    by zaznaczyć kilka obiektów naraz (razem się przesuwają i usuwają). Przy jednym zaznaczonym kształcie
+    widać uchwyty (teal) do zmiany rozmiaru. Dwuklik na obiekt go usuwa. <b>Gumka</b> — klikaj lub przeciągaj
+    po obiektach, żeby je kasować. Siatka to tylko pomoc wizualną — nigdy nie trafia do eksportu.
+    Eksport tworzy czysty plik .SVG (viewBox 0 0 560 400, bez tła), gotowy pod Bambu Studio.
+  </p>
+</div>
+
+<script>
+  const svg = document.getElementById('canvas');
+  const layer = document.getElementById('drawLayer');
+  const gridBg = document.getElementById('gridBg');
+  const NS = 'http://www.w3.org/2000/svg';
+
+  let currentWidth = 8;
+  let currentTool = 'draw';
+  let currentFillMode = 'filled';
+
+  let drawing = false;
+  let currentPath = null;
+  let history = [];
+
+  let selectedShapes = new Set();
+  let handlesGroup = null;
+
+  let newShapeStart = null;
+  let newShapeEl = null;
+
+  let erasing = false;
+
+  // --- Siatka ---
+  document.getElementById('gridToggle').addEventListener('change', (e) => {
+    gridBg.style.display = e.target.checked ? '' : 'none';
+  });
+
+  // --- Narzędzia ---
+  document.querySelectorAll('.t-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.t-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      // Jeżeli zmieniono narzędzie podczas przeciągania, poprawnie zakończ akcję.
+      if (activeAction === 'draw') endDraw();
+      else if (activeAction === 'shape') finishNewShape();
+      else if (activeAction === 'erase') erasing = false;
+      activePointerId = null;
+      activeAction = null;
+
+      currentTool = btn.dataset.tool;
+      if (currentTool !== 'select') deselectAll();
+    });
+  });
+
+  // --- Grubość linii ---
+  document.querySelectorAll('.w-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.w-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentWidth = parseInt(btn.dataset.width, 10);
+      applyWidthToSelection();
+    });
+  });
+
+  // --- Wypełnienie ---
+  document.querySelectorAll('.f-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.f-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFillMode = btn.dataset.fill;
+      applyFillModeToSelection();
+    });
+  });
+
+  // --- Współrzędne ekranu -> SVG ---
+  function getPoint(evt) {
+    const pt = svg.createSVGPoint();
+    const t = evt.touches ? evt.touches[0] : evt;
+    pt.x = t.clientX;
+    pt.y = t.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  function getClient(evt) {
+    const t = evt.touches ? evt.touches[0] : evt;
+    return { x: t.clientX, y: t.clientY };
+  }
+  function isBackground(target) {
+    return target === svg || target === gridBg || target === layer;
+  }
+
+  // ============ GŁÓWNA OBSŁUGA PŁÓTNA ============
+  // Stabilna obsługa Pointer Events: przechwytujemy wskaźnik na SVG,
+  // więc rysowanie nie przerywa się po wyjechaniu kursorem poza element.
+  let activePointerId = null;
+  let activeAction = null; // 'draw' | 'shape' | 'erase'
+
+  svg.addEventListener('pointerdown', (e) => {
+    if (activePointerId !== null) return;
+
+    if (currentTool === 'draw') {
+      activePointerId = e.pointerId;
+      activeAction = 'draw';
+      try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault();
+      startDraw(e);
+    } else if (currentTool === 'select') {
+      if (isBackground(e.target)) deselectAll();
+    } else if (['rect', 'circle', 'triangle', 'line'].includes(currentTool)) {
+      activePointerId = e.pointerId;
+      activeAction = 'shape';
+      try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault();
+      startNewShape(e);
+    } else if (currentTool === 'eraser') {
+      activePointerId = e.pointerId;
+      activeAction = 'erase';
+      try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault();
+      erasing = true;
+      const c = getClient(e);
+      tryErase(c.x, c.y);
+    }
+  });
+
+  svg.addEventListener('pointermove', (e) => {
+    if (activePointerId !== e.pointerId) return;
+
+    if (activeAction === 'draw') {
+      draw(e);
+    } else if (activeAction === 'shape') {
+      resizeNewShape(e);
+    } else if (activeAction === 'erase' && erasing) {
+      const c = getClient(e);
+      tryErase(c.x, c.y);
+    }
+  });
+
+  function finishPointerAction(e) {
+    if (activePointerId !== e.pointerId) return;
+
+    const action = activeAction;
+    activePointerId = null;
+    activeAction = null;
+
+    if (action === 'draw') {
+      endDraw();
+    } else if (action === 'shape') {
+      finishNewShape();
+    } else if (action === 'erase') {
+      erasing = false;
+    }
+
+    try {
+      if (svg.hasPointerCapture(e.pointerId)) svg.releasePointerCapture(e.pointerId);
+    } catch (_) {}
+  }
+
+  svg.addEventListener('pointerup', finishPointerAction);
+  svg.addEventListener('pointercancel', finishPointerAction);
+  svg.addEventListener('lostpointercapture', (e) => {
+    if (activePointerId === e.pointerId) {
+      const action = activeAction;
+      activePointerId = null;
+      activeAction = null;
+      if (action === 'draw') endDraw();
+      else if (action === 'shape') finishNewShape();
+      else if (action === 'erase') erasing = false;
+    }
+  });
+
+  // ============ PĘDZEL ============
+  function startDraw(e) {
+    drawing = true;
+    const p = getPoint(e);
+    currentPath = document.createElementNS(NS, 'path');
+    currentPath.dataset.type = 'path';
+    currentPath.setAttribute('d', `M ${p.x.toFixed(2)} ${p.y.toFixed(2)}`);
+    currentPath.setAttribute('stroke', '#000');
+    currentPath.setAttribute('stroke-width', currentWidth);
+    currentPath.setAttribute('fill', 'none');
+    currentPath.setAttribute('stroke-linecap', 'round');
+    currentPath.setAttribute('stroke-linejoin', 'round');
+    layer.appendChild(currentPath);
+  }
+
+  function draw(e) {
+    if (!drawing || !currentPath) return;
+    const p = getPoint(e);
+    const oldD = currentPath.getAttribute('d') || '';
+    currentPath.setAttribute('d', oldD + ` L ${p.x.toFixed(2)} ${p.y.toFixed(2)}`);
+  }
+
+  function endDraw() {
+    if (drawing && currentPath) {
+      history.push(currentPath);
+      attachSelectable(currentPath);
+    }
+    drawing = false;
+    currentPath = null;
+  }
+
+  // ============ NOWE KSZTAŁTY / LINIA ============
+  function startNewShape(e) {
+    newShapeStart = getPoint(e);
+    if (currentTool === 'rect') newShapeEl = document.createElementNS(NS, 'rect');
+    else if (currentTool === 'circle') newShapeEl = document.createElementNS(NS, 'ellipse');
+    else if (currentTool === 'triangle') newShapeEl = document.createElementNS(NS, 'polygon');
+    else if (currentTool === 'line') newShapeEl = document.createElementNS(NS, 'line');
+
+    newShapeEl.dataset.type = currentTool;
+
+    if (currentTool === 'line') {
+      newShapeEl.setAttribute('x1', newShapeStart.x);
+      newShapeEl.setAttribute('y1', newShapeStart.y);
+      newShapeEl.setAttribute('x2', newShapeStart.x);
+      newShapeEl.setAttribute('y2', newShapeStart.y);
+      newShapeEl.setAttribute('stroke', '#000');
+      newShapeEl.setAttribute('stroke-width', currentWidth);
+      newShapeEl.setAttribute('stroke-linecap', 'round');
+      newShapeEl.setAttribute('fill', 'none');
+    } else {
+      applyFillModeToShape(newShapeEl, currentFillMode);
+      setShapeGeometry(newShapeEl, { x: newShapeStart.x, y: newShapeStart.y, w: 1, h: 1 });
+    }
+    layer.appendChild(newShapeEl);
+  }
+
+  function resizeNewShape(e) {
+    if (!newShapeEl || !newShapeStart) return;
+    const p = getPoint(e);
+    if (currentTool === 'line') {
+      newShapeEl.setAttribute('x2', p.x);
+      newShapeEl.setAttribute('y2', p.y);
+    } else {
+      const x = Math.min(p.x, newShapeStart.x);
+      const y = Math.min(p.y, newShapeStart.y);
+      const w = Math.max(Math.abs(p.x - newShapeStart.x), 2);
+      const h = Math.max(Math.abs(p.y - newShapeStart.y), 2);
+      setShapeGeometry(newShapeEl, { x, y, w, h });
+    }
+  }
+
+  function finishNewShape() {
+    if (newShapeEl) {
+      history.push(newShapeEl);
+      attachSelectable(newShapeEl);
+      const el = newShapeEl;
+      newShapeEl = null;
+      newShapeStart = null;
+      document.querySelector('.t-btn[data-tool="select"]').click();
+      selectedShapes.clear();
+      selectedShapes.add(el);
+      renderHandles();
+    }
+  }
+
+  function setShapeGeometry(el, bb) {
+    const type = el.dataset.type;
+    if (type === 'rect') {
+      el.setAttribute('x', bb.x); el.setAttribute('y', bb.y);
+      el.setAttribute('width', bb.w); el.setAttribute('height', bb.h);
+    } else if (type === 'circle') {
+      el.setAttribute('cx', bb.x + bb.w / 2);
+      el.setAttribute('cy', bb.y + bb.h / 2);
+      el.setAttribute('rx', bb.w / 2);
+      el.setAttribute('ry', bb.h / 2);
+    } else if (type === 'triangle') {
+      const pts = `${bb.x + bb.w / 2},${bb.y} ${bb.x},${bb.y + bb.h} ${bb.x + bb.w},${bb.y + bb.h}`;
+      el.setAttribute('points', pts);
+    }
+  }
+
+  function applyFillModeToShape(el, mode) {
+    if (!['rect', 'circle', 'triangle'].includes(el.dataset.type)) return;
+    if (mode === 'filled') {
+      el.setAttribute('fill', '#000');
+      el.setAttribute('stroke', 'none');
+      el.removeAttribute('stroke-width');
+    } else {
+      el.setAttribute('fill', 'none');
+      el.setAttribute('stroke', '#000');
+      el.setAttribute('stroke-width', currentWidth);
+    }
+  }
+
+  function applyFillModeToSelection() {
+    selectedShapes.forEach(el => applyFillModeToShape(el, currentFillMode));
+  }
+
+  function applyWidthToSelection() {
+    selectedShapes.forEach(el => {
+      const type = el.dataset.type;
+      if (el.tagName === 'path' || type === 'line') {
+        el.setAttribute('stroke-width', currentWidth);
+      } else if (['rect', 'circle', 'triangle'].includes(type) && el.getAttribute('fill') === 'none') {
+        el.setAttribute('stroke-width', currentWidth);
+      }
+    });
+  }
+
+  // ============ PRZESUWANIE (generyczne, dowolny typ) ============
+  function moveShapeBy(el, dx, dy) {
+    const type = el.dataset.type;
+    if (type === 'rect') {
+      el.setAttribute('x', parseFloat(el.getAttribute('x')) + dx);
+      el.setAttribute('y', parseFloat(el.getAttribute('y')) + dy);
+    } else if (type === 'circle') {
+      el.setAttribute('cx', parseFloat(el.getAttribute('cx')) + dx);
+      el.setAttribute('cy', parseFloat(el.getAttribute('cy')) + dy);
+    } else if (type === 'triangle') {
+      const pts = el.getAttribute('points').trim().split(' ').map(pair => {
+        const [x, y] = pair.split(',').map(Number);
+        return `${x + dx},${y + dy}`;
+      });
+      el.setAttribute('points', pts.join(' '));
+    } else if (type === 'line') {
+      el.setAttribute('x1', parseFloat(el.getAttribute('x1')) + dx);
+      el.setAttribute('y1', parseFloat(el.getAttribute('y1')) + dy);
+      el.setAttribute('x2', parseFloat(el.getAttribute('x2')) + dx);
+      el.setAttribute('y2', parseFloat(el.getAttribute('y2')) + dy);
+    } else if (type === 'path') {
+      const d = el.getAttribute('d');
+      const newD = d.replace(/(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/g,
+        (m, x, y) => `${(parseFloat(x) + dx).toFixed(2)} ${(parseFloat(y) + dy).toFixed(2)}`);
+      el.setAttribute('d', newD);
+    } else if (el.tagName === 'text') {
+      el.setAttribute('x', parseFloat(el.getAttribute('x')) + dx);
+      el.setAttribute('y', parseFloat(el.getAttribute('y')) + dy);
+    }
+  }
+
+  // ============ ZAZNACZANIE (Shift = multi-select) ============
+  function toggleSelect(el) {
+    if (selectedShapes.has(el)) selectedShapes.delete(el);
+    else selectedShapes.add(el);
+    renderHandles();
+  }
+
+  function deselectAll() {
+    selectedShapes.clear();
+    renderHandles();
+  }
+
+  function attachSelectable(el) {
+    el.style.cursor = 'move';
+    el.addEventListener('pointerdown', (e) => {
+      if (currentTool !== 'select') return;
+      e.stopPropagation();
+      if (e.shiftKey) {
+        toggleSelect(el);
+        return;
+      }
+      if (!selectedShapes.has(el)) {
+        selectedShapes.clear();
+        selectedShapes.add(el);
+      }
+      renderHandles();
+
+      let lastP = getPoint(e);
+      el.setPointerCapture(e.pointerId);
+      const onMove = (ev) => {
+        const p = getPoint(ev);
+        const dx = p.x - lastP.x, dy = p.y - lastP.y;
+        selectedShapes.forEach(s => moveShapeBy(s, dx, dy));
+        lastP = p;
+        renderHandles();
+      };
+      const onUp = () => {
+        el.removeEventListener('pointermove', onMove);
+        el.removeEventListener('pointerup', onUp);
+      };
+      el.addEventListener('pointermove', onMove);
+      el.addEventListener('pointerup', onUp);
+    });
+
+    el.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      if (confirm('Usunąć ten element?')) deleteElement(el);
+    });
+  }
+
+  function deleteElement(el) {
+    if (el.parentNode) el.parentNode.removeChild(el);
+    history = history.filter(h => h !== el);
+    selectedShapes.delete(el);
+    renderHandles();
+  }
+
+  // ============ UCHWYTY ZAZNACZENIA ============
+  function renderHandles() {
+    if (handlesGroup) { handlesGroup.remove(); handlesGroup = null; }
+    if (selectedShapes.size === 0) return;
+
+    handlesGroup = document.createElementNS(NS, 'g');
+
+    selectedShapes.forEach(el => {
+      const bb = el.getBBox();
+      const outline = document.createElementNS(NS, 'rect');
+      outline.setAttribute('x', bb.x - 2);
+      outline.setAttribute('y', bb.y - 2);
+      outline.setAttribute('width', bb.width + 4);
+      outline.setAttribute('height', bb.height + 4);
+      outline.setAttribute('class', 'sel-outline');
+      handlesGroup.appendChild(outline);
+    });
+
+    if (selectedShapes.size === 1) {
+      const el = [...selectedShapes][0];
+      const type = el.dataset.type;
+      if (['rect', 'circle', 'triangle'].includes(type)) addCornerHandles(el);
+      else if (type === 'line') addLineEndpointHandles(el);
+    }
+
+    svg.appendChild(handlesGroup);
+  }
+
+  function addCornerHandles(el) {
+    const bb = el.getBBox();
+    const corners = {
+      nw: { x: bb.x, y: bb.y },
+      ne: { x: bb.x + bb.width, y: bb.y },
+      sw: { x: bb.x, y: bb.y + bb.height },
+      se: { x: bb.x + bb.width, y: bb.y + bb.height }
+    };
+    Object.entries(corners).forEach(([corner, pos]) => {
+      const h = document.createElementNS(NS, 'rect');
+      const s = 10;
+      h.setAttribute('x', pos.x - s / 2);
+      h.setAttribute('y', pos.y - s / 2);
+      h.setAttribute('width', s);
+      h.setAttribute('height', s);
+      h.setAttribute('class', 'handle');
+
+      h.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        const startP = getPoint(e);
+        const ob = el.getBBox();
+        h.setPointerCapture(e.pointerId);
+
+        const onMove = (ev) => {
+          const p = getPoint(ev);
+          const dx = p.x - startP.x, dy = p.y - startP.y;
+          let nx = ob.x, ny = ob.y, nw = ob.width, nh = ob.height;
+          if (corner === 'nw') { nx = ob.x + dx; ny = ob.y + dy; nw = ob.width - dx; nh = ob.height - dy; }
+          if (corner === 'ne') { ny = ob.y + dy; nw = ob.width + dx; nh = ob.height - dy; }
+          if (corner === 'sw') { nx = ob.x + dx; nw = ob.width - dx; nh = ob.height + dy; }
+          if (corner === 'se') { nw = ob.width + dx; nh = ob.height + dy; }
+          nw = Math.max(nw, 8); nh = Math.max(nh, 8);
+          setShapeGeometry(el, { x: nx, y: ny, w: nw, h: nh });
+          renderHandles();
+        };
+        const onUp = () => {
+          h.removeEventListener('pointermove', onMove);
+          h.removeEventListener('pointerup', onUp);
+        };
+        h.addEventListener('pointermove', onMove);
+        h.addEventListener('pointerup', onUp);
+      });
+
+      handlesGroup.appendChild(h);
+    });
+  }
+
+  function addLineEndpointHandles(el) {
+    const points = [
+      { key: 'x1y1', xa: 'x1', ya: 'y1' },
+      { key: 'x2y2', xa: 'x2', ya: 'y2' }
+    ];
+    points.forEach(pt => {
+      const h = document.createElementNS(NS, 'rect');
+      const s = 10;
+      const x = parseFloat(el.getAttribute(pt.xa));
+      const y = parseFloat(el.getAttribute(pt.ya));
+      h.setAttribute('x', x - s / 2);
+      h.setAttribute('y', y - s / 2);
+      h.setAttribute('width', s);
+      h.setAttribute('height', s);
+      h.setAttribute('class', 'handle');
+
+      h.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        h.setPointerCapture(e.pointerId);
+        const onMove = (ev) => {
+          const p = getPoint(ev);
+          el.setAttribute(pt.xa, p.x);
+          el.setAttribute(pt.ya, p.y);
+          renderHandles();
+        };
+        const onUp = () => {
+          h.removeEventListener('pointermove', onMove);
+          h.removeEventListener('pointerup', onUp);
+        };
+        h.addEventListener('pointermove', onMove);
+        h.addEventListener('pointerup', onUp);
+      });
+
+      handlesGroup.appendChild(h);
+    });
+  }
+
+  // ============ GUMKA ============
+  function tryErase(clientX, clientY) {
+    const el = document.elementFromPoint(clientX, clientY);
+    if (el && el.parentNode === layer) deleteElement(el);
+  }
+
+  // Klawiatura
+  window.addEventListener('keydown', (e) => {
+    if (document.activeElement.tagName === 'INPUT') return;
+    if (e.key === 'Escape') deselectAll();
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (selectedShapes.size > 0) {
+        e.preventDefault();
+        Array.from(selectedShapes).forEach(el => deleteElement(el));
+      }
+    }
+  });
+
+  document.getElementById('deleteBtn').addEventListener('click', () => {
+    Array.from(selectedShapes).forEach(el => deleteElement(el));
+  });
+
+  // --- Cofnij / Wyczyść ---
+  document.getElementById('undoBtn').addEventListener('click', () => {
+    const last = history.pop();
+    if (last) deleteElement(last);
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    if (confirm('Na pewno wyczyścić całe płótno?')) {
+      deselectAll();
+      layer.innerHTML = '';
+      history = [];
+    }
+  });
+
+  // --- Dodawanie tekstu ---
+  document.getElementById('addTextBtn').addEventListener('click', () => {
+    const val = document.getElementById('textInput').value.trim();
+    if (!val) return;
+    const size = parseInt(document.getElementById('fontSize').value, 10) || 32;
+
+    const t = document.createElementNS(NS, 'text');
+    t.setAttribute('x', 280);
+    t.setAttribute('y', 370);
+    t.setAttribute('font-size', size);
+    t.setAttribute('font-family', 'Arial, sans-serif');
+    t.setAttribute('font-weight', 'bold');
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('fill', '#000');
+    t.textContent = val;
+
+    attachSelectable(t);
+    layer.appendChild(t);
+    history.push(t);
+    document.getElementById('textInput').value = '';
+  });
+
+  // --- Eksport do czystego pliku .SVG (bez siatki i uchwytów) ---
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    deselectAll();
+    const exportSvg = document.createElementNS(NS, 'svg');
+    exportSvg.setAttribute('xmlns', NS);
+    exportSvg.setAttribute('viewBox', '0 0 560 400');
+    exportSvg.setAttribute('width', '560');
+    exportSvg.setAttribute('height', '400');
+
+    const layerClone = layer.cloneNode(true);
+    layerClone.querySelectorAll('[style]').forEach(el => el.removeAttribute('style'));
+    layerClone.querySelectorAll('[data-type]').forEach(el => el.removeAttribute('data-type'));
+    Array.from(layerClone.childNodes).forEach(node => exportSvg.appendChild(node));
+
+    let source = new XMLSerializer().serializeToString(exportSvg);
+    if (!source.match(/^<\?xml/)) {
+      source = '<?xml version="1.0" standalone="no"?>\n' + source;
+    }
+
+    const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'vectorpad-export.svg';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+</script>
+</body>
+</html>
